@@ -1,20 +1,21 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import {  useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Send } from "lucide-react";
-import Header from "./Header"; // Ensure this path is correct
-import Footer from "./Footer"; // Ensure this path is correct
+import Header from "./Header";
+import Footer from "./Footer";
 
 const ContactForm = () => {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    subject: "",
     message: "",
   });
   const [status, setStatus] = useState("");
   const [errors, setErrors] = useState({});
-  const maxWords = 100; // Set the word limit here
+  const maxWords = 100;
   const navigate = useNavigate();
 
   const scrollToSection = (sectionId) => {
@@ -24,62 +25,58 @@ const ContactForm = () => {
       element?.scrollIntoView({ behavior: "smooth" });
     }, 100); // Delay to ensure the home page loads before scrolling
   };
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
-
-  const getWordCount = (message) => {
-    return message.trim().split(/\s+/).length;
-  };
+  const getWordCount = (message) => message.trim().split(/\s+/).length;
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData((prevState) => ({ ...prevState, [id]: value }));
+    setFormData((prev) => ({ ...prev, [id]: value }));
+    setErrors((prev) => ({ ...prev, [id]: "" }));
+  };
 
-    // Clear errors as the user types
-    setErrors((prevState) => ({ ...prevState, [id]: "" }));
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    if (!validateEmail(formData.email))
+      newErrors.email = "Invalid email address";
+    if (!formData.subject.trim()) newErrors.subject = "Subject is required";
+    if (getWordCount(formData.message) > maxWords)
+      newErrors.message = `Max ${maxWords} words`;
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Client-side validation
-    if (!validateEmail(formData.email)) {
-      setErrors((prevState) => ({
-        ...prevState,
-        email: "Invalid email address",
-      }));
-      return;
-    }
-
-    if (getWordCount(formData.message) > maxWords) {
-      setErrors((prevState) => ({
-        ...prevState,
-        message: `Message must be ${maxWords} words or fewer`,
-      }));
-      return;
-    }
+    if (!validateForm()) return;
 
     try {
       const response = await axios.post(
-        "http://localhost:3001/service-contact",
-        formData
+        "http://localhost:3001/api/service-contact",
+        formData,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
       );
+
       if (response.data.success) {
-        setStatus("Message sent successfully!");
-        setFormData({ name: "", email: "", message: "" });
+        setStatus("Message sent successfully! 🎉");
+        setFormData({ name: "", email: "", subject: "", message: "" });
+        setTimeout(() => setStatus(""), 3000);
       }
     } catch (err) {
-      console.error(err);
-      setStatus("Failed to send message.");
+      const errorMessage =
+        err.response?.data?.message ||
+        "Failed to send message. Please try again.";
+      setStatus(`Error: ${errorMessage}`);
+      console.error("Submission error:", err);
     }
   };
 
   const wordCount = getWordCount(formData.message);
-  const wordCountClass =
-    wordCount > maxWords ? "text-red-500" : "text-green-500";
+  const isFormValid = wordCount <= maxWords;
 
   return (
     <>
@@ -102,93 +99,131 @@ const ContactForm = () => {
           Have questions or want to work with us? Fill out the form below, and
           our team will get back to you promptly.
         </p>
-        <motion.form
-          className="space-y-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          onSubmit={handleSubmit}
-        >
+
+        <motion.form className="space-y-6" onSubmit={handleSubmit}>
+          {/* Name Field */}
           <div>
-            <label
-              className="block text-gray-700 text-sm font-bold mb-2"
-              htmlFor="name"
-            >
+            <label className="block text-gray-700 text-sm font-bold mb-2">
               Your Name
             </label>
             <motion.input
-              className="w-full p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+              className={`w-full p-4 border rounded-lg focus:outline-none ${
+                errors.name
+                  ? "border-red-500"
+                  : "focus:ring-2 focus:ring-blue-500"
+              }`}
               type="text"
               id="name"
-              placeholder="Enter your full name"
               value={formData.name}
               onChange={handleChange}
               whileFocus={{ scale: 1.02 }}
+              placeholder="John Doe"
             />
+            {errors.name && <p className="text-red-500 mt-2">{errors.name}</p>}
           </div>
 
+          {/* Email Field */}
           <div>
-            <label
-              className="block text-gray-700 text-sm font-bold mb-2"
-              htmlFor="email"
-            >
+            <label className="block text-gray-700 text-sm font-bold mb-2">
               Your Email
             </label>
             <motion.input
-              className="w-full p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+              className={`w-full p-4 border rounded-lg focus:outline-none ${
+                errors.email
+                  ? "border-red-500"
+                  : "focus:ring-2 focus:ring-blue-500"
+              }`}
               type="email"
               id="email"
-              placeholder="Enter your email address"
               value={formData.email}
               onChange={handleChange}
               whileFocus={{ scale: 1.02 }}
+              placeholder="john@example.com"
             />
             {errors.email && (
               <p className="text-red-500 mt-2">{errors.email}</p>
             )}
           </div>
 
+          {/* Subject Field */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">
+              Subject
+            </label>
+            <motion.input
+              className={`w-full p-4 border rounded-lg focus:outline-none ${
+                errors.subject
+                  ? "border-red-500"
+                  : "focus:ring-2 focus:ring-blue-500"
+              }`}
+              type="text"
+              id="subject"
+              value={formData.subject}
+              onChange={handleChange}
+              whileFocus={{ scale: 1.02 }}
+              placeholder="Regarding Marketing Services"
+            />
+            {errors.subject && (
+              <p className="text-red-500 mt-2">{errors.subject}</p>
+            )}
+          </div>
+
+          {/* Message Field */}
           <div className="relative">
-            <label
-              className="block text-gray-700 text-sm font-bold mb-2"
-              htmlFor="message"
-            >
+            <label className="block text-gray-700 text-sm font-bold mb-2">
               Message
             </label>
             <motion.textarea
-              className="w-full p-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+              className={`w-full p-4 border rounded-lg focus:outline-none ${
+                errors.message
+                  ? "border-red-500"
+                  : "focus:ring-2 focus:ring-blue-500"
+              }`}
               id="message"
-              placeholder="Type your message here"
               rows="5"
               value={formData.message}
               onChange={handleChange}
               whileFocus={{ scale: 1.02 }}
-            ></motion.textarea>
-            <div className={`absolute bottom-2 left-2 ${wordCountClass}`}>
-              {wordCount}/{maxWords} words
+              placeholder="Tell us about your project..."
+            />
+            <div
+              className={`absolute bottom-2 right-2 text-sm ${
+                wordCount > maxWords ? "text-red-500" : "text-gray-500"
+              }`}
+            >
+              {wordCount}/{maxWords}
             </div>
             {errors.message && (
               <p className="text-red-500 mt-2">{errors.message}</p>
             )}
           </div>
 
-          <div className="text-center">
-            <motion.button
-              className={`w-full py-3 rounded-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center justify-center space-x-2 ${
-                wordCount > maxWords
-                  ? "bg-gray-400 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-600 to-green-500 text-white"
-              }`}
-              type="submit"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              disabled={wordCount > maxWords}
-            >
-              <span>Send Message</span>
+          {/* Submit Button */}
+          <motion.button
+            className={`w-full py-3 rounded-lg transition-all duration-300 ${
+              isFormValid
+                ? "bg-gradient-to-r from-blue-600 to-green-500 text-white hover:shadow-xl"
+                : "bg-gray-300 cursor-not-allowed"
+            }`}
+            type="submit"
+            whileTap={{ scale: isFormValid ? 0.95 : 1 }}
+            disabled={!isFormValid}
+          >
+            <div className="flex items-center justify-center gap-2">
               <Send className="w-5 h-5" />
-            </motion.button>
-          </div>
-          {status && <p className="text-center mt-4 text-black">{status}</p>}
+              <span>Send Message</span>
+            </div>
+          </motion.button>
+
+          {status && (
+            <p
+              className={`text-center mt-4 text-sm ${
+                status.includes("🎉") ? "text-green-600" : "text-red-600"
+              }`}
+            >
+              {status}
+            </p>
+          )}
         </motion.form>
 
         <motion.div

@@ -6,30 +6,26 @@ export default function NewsletterSection() {
   const [subscribed, setSubscribed] = useState(false);
   const [error, setError] = useState('');
 
+  // Handle subscription form submission
   const handleSubmit = async (event) => {
     event.preventDefault();
+    console.log("Submitting email:", email); // Log the email being submitted for debugging
     try {
-      const response = await axios.post('http://localhost:3001/newsletter/subscribe', { email });
+      const response = await axios.post('http://localhost:3001/api/subscribe', { email });
       if (response.data.success) {
         setSubscribed(true);
         setError('');
         setEmail('');
+      } else {
+        setError(response.data.message || 'Failed to subscribe. Please try again.');
       }
     } catch (err) {
-      setError('Failed to subscribe. Please try again.');
-    }
-  };
-
-  const handleUnsubscribe = async () => {
-    try {
-      const response = await axios.post('http://localhost:3001/newsletter/unsubscribe', { email });
-      if (response.data.success) {
-        setSubscribed(false);
-        setError('');
-        setEmail('');
+      console.error("Axios error:", err);
+      if (err.response && err.response.data) {
+        setError(err.response.data.message || 'Failed to subscribe. Please try again.');
+      } else {
+        setError('Failed to subscribe. Please try again.');
       }
-    } catch (err) {
-      setError('Failed to unsubscribe. Please try again.');
     }
   };
 
@@ -45,6 +41,7 @@ export default function NewsletterSection() {
         <p className="text-lg mb-8 animate__animated animate__fadeIn animate__delay-2s">
           Join our community to get the latest updates, exclusive offers, and insights directly in your inbox.
         </p>
+
         {!subscribed ? (
           <form
             onSubmit={handleSubmit}
@@ -70,12 +67,6 @@ export default function NewsletterSection() {
             <p className="text-lg text-green-500">
               Thank you for subscribing! 🎉
             </p>
-            <button
-              onClick={handleUnsubscribe}
-              className="w-full md:w-auto bg-gradient-to-r from-red-600 to-yellow-500 text-white px-6 py-3 rounded-lg mt-4 md:mt-0 md:ml-4 transform hover:scale-105 transition-transform duration-300 ease-out"
-            >
-              Unsubscribe
-            </button>
           </div>
         )}
         {error && <p className="text-red-500 mt-4">{error}</p>}
