@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:alpine
+    container_name: db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "@Aayush23"
+      POSTGRES_DB: marketingBirbal
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketingBirbal"]
+      interval: 5s
+      retries: 5
+      start_period: 10s
+
+  backend:
+    build: ./backend
+    container_name: backend
+    ports:
+      - "3001:3001"
+    environment:
+      DB_USER: postgres
+      DB_HOST: db  # Connect to the 'db' service, not localhost
+      DB_NAME: marketingBirbal
+      DB_PASSWORD: "@Aayush23"
+      DB_PORT: 5432
+      JWT_SECRET: digi_birbal
+      EMAIL_USER: birbaldigi@gmail.com
+      EMAIL_PASSWORD: lrdcsspawtefhppo
+      PERSONAL_EMAIL: birbaldigi@gmail.com
+      PORT: 3001
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: always
+    command: ["node", "src/server.js"]
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: always
+    command: ["npm", "start"]
+
+volumes:
+  pg_data:
